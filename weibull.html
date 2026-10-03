@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weibull Reliability Maintenance</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f7f5;
+    --surface: #fcfcfb;
+    --border: #e2e1dc;
+    --grid: #ecebe6;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --muted: #8a8984;
+    --accent: #2a78d6;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --good: #008300;
+    --warn: #b87d00;
+    --bad: #c93c3b;
+    --code-bg: #f0efea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121211;
+      --surface: #1a1a19;
+      --border: #33322f;
+      --grid: #2a2a28;
+      --text: #ffffff;
+      --text-2: #c3c2b7;
+      --muted: #8f8e86;
+      --accent: #3987e5;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --good: #3fae3f;
+      --warn: #e0a520;
+      --bad: #e66767;
+      --code-bg: #242422;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --border: #33322f;
+    --grid: #2a2a28;
+    --text: #ffffff;
+    --text-2: #c3c2b7;
+    --muted: #8f8e86;
+    --accent: #3987e5;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --good: #3fae3f;
+    --warn: #e0a520;
+    --bad: #e66767;
+    --code-bg: #242422;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  header {
+    padding: 56px 16px 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+  header .wrap { padding: 0; }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+  h1 { font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 8px 0 12px; }
+  h2 { font-size: 26px; margin: 56px 0 12px; line-height: 1.25; }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  p, li { color: var(--text-2); }
+  strong { color: var(--text); }
+  .lede { font-size: 18px; max-width: 720px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  nav.toc a {
+    font-size: 14px; text-decoration: none; color: var(--text-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+  nav.toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .formula {
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+    font-size: 19px;
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    overflow-x: auto;
+    color: var(--text);
+  }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text); font-weight: 600; background: var(--code-bg); }
+  td { color: var(--text-2); }
+  .table-scroll { overflow-x: auto; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .b-1 { color: var(--series-1); }
+  .b-2 { color: var(--series-2); }
+  .b-3 { color: var(--series-3); }
+
+  /* Calculator */
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 24px; }
+  .control label { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-2); }
+  .control label output { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="number"], textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { font-family: Consolas, monospace; font-size: 14px; min-height: 64px; }
+  button {
+    font: inherit; font-size: 14px; cursor: pointer; border-radius: 8px; padding: 8px 14px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0 8px; }
+  .tile { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .tile .k { font-size: 13px; color: var(--muted); }
+  .tile .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
+  .tile .s { font-size: 12px; color: var(--muted); }
+
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 4px; }
+  .tabs button { background: transparent; color: var(--text-2); border-color: var(--border); }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart .axis text { fill: var(--muted); font-size: 11px; }
+  .chart .axis line, .chart .gridline { stroke: var(--grid); stroke-width: 1; }
+  .chart .baseline { stroke: var(--border); stroke-width: 1; }
+  .chart .ax-title { fill: var(--text-2); font-size: 12px; }
+  .chart .crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12); white-space: nowrap; opacity: 0; transition: opacity .1s;
+    font-variant-numeric: tabular-nums;
+  }
+  .tooltip .row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .sw { width: 10px; height: 2px; border-radius: 1px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-2); margin: 4px 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+
+  .callout { border-left: 3px solid var(--accent); padding: 8px 16px; background: var(--code-bg); border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout p { margin: 4px 0; }
+  .status { font-weight: 600; }
+  .status.good { color: var(--good); }
+  .status.warn { color: var(--warn); }
+  .status.bad  { color: var(--bad); }
+  ol.steps li { margin-bottom: 8px; }
+  footer { margin: 64px 0 0; padding: 24px 16px 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Reliability Engineering</div>
+    <h1>Weibull Analysis for Reliability-Centred Maintenance</h1>
+    <p class="lede">How to use the Weibull distribution to understand <strong>why</strong> equipment fails, <strong>when</strong> it is likely to fail, and <strong>which</strong> maintenance strategy makes sense: run-to-failure, condition monitoring or time-based replacement.</p>
+    <nav class="toc">
+      <a href="#why">Why Weibull</a>
+      <a href="#math">The maths</a>
+      <a href="#shape">Reading β</a>
+      <a href="#calc">Calculator</a>
+      <a href="#fit">Fit your data</a>
+      <a href="#pm">PM interval</a>
+      <a href="#steps">Workflow</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- WHY -->
+  <section id="why">
+    <h2>Why Weibull?</h2>
+    <p>Most failure data from rotating equipment, valves, instruments and electrical components does not follow a simple bell curve. The <strong>Weibull distribution</strong>, introduced by Waloddi Weibull in 1951, is flexible enough to model all three phases of the classic "bathtub" life: early-life failures, random failures and wear-out. Two parameters describe it:</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="margin-top:0">β: shape parameter</h3>
+        <p>Tells you <strong>how</strong> the item fails, meaning whether the failure rate is falling, constant or rising with age. This is the number that drives the maintenance decision.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">η: scale parameter (characteristic life)</h3>
+        <p>Tells you <strong>when</strong>. At t = η, 63.2% of the population has failed, whatever the value of β. It uses the same units as your data (hours, cycles, starts).</p>
+      </div>
+    </div>
+    <p>A third parameter, <strong>γ (location / failure-free life)</strong>, is sometimes added when no failure can happen before a minimum age. Most maintenance work uses the 2-parameter form (γ = 0).</p>
+  </section>
+
+  <!-- MATH -->
+  <section id="math">
+    <h2>The key equations</h2>
+    <div class="card">
+      <div class="grid-2">
+        <div>
+          <p><strong>Reliability</strong>: probability of surviving to time t</p>
+          <div class="formula">R(t) = exp[ −(t / η)<sup>β</sup> ]</div>
+        </div>
+        <div>
+          <p><strong>Unreliability (CDF)</strong>: probability of failing by t</p>
+          <div class="formula">F(t) = 1 − exp[ −(t / η)<sup>β</sup> ]</div>
+        </div>
+        <div>
+          <p><strong>Probability density (PDF)</strong></p>
+          <div class="formula">f(t) = (β/η)·(t/η)<sup>β−1</sup>·exp[ −(t/η)<sup>β</sup> ]</div>
+        </div>
+        <div>
+          <p><strong>Hazard (instantaneous failure rate)</strong></p>
+          <div class="formula">h(t) = (β/η)·(t/η)<sup>β−1</sup></div>
+        </div>
+        <div>
+          <p><strong>Mean time to failure</strong></p>
+          <div class="formula">MTTF = η · Γ(1 + 1/β)</div>
+        </div>
+        <div>
+          <p><strong>B<sub>x</sub> life</strong>: age by which x% have failed</p>
+          <div class="formula">B<sub>x</sub> = η · [ −ln(1 − x/100) ]<sup>1/β</sup></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>Linearised form for plotting.</strong> Taking logs twice gives a straight line:</p>
+      <p class="formula" style="background:transparent;padding:4px 0">ln[ −ln(1 − F) ] = β·ln(t) − β·ln(η)</p>
+      <p>Plot ln(t) on x and ln[−ln(1−F)] on y. The <strong>slope is β</strong>, and η is the time where the line crosses F = 63.2%.</p>
+    </div>
+  </section>
+
+  <!-- BETA -->
+  <section id="shape">
+    <h2>Reading β: the bathtub curve and what to do about it</h2>
+    <p>The hazard function h(t) shows how the failure rate changes with age. The chart compares three typical shapes with η = 1,000 h.</p>
+    <div class="card">
+      <div class="legend" id="bathLegend"></div>
+      <div class="chart" id="bathChart"></div>
+    </div>
+
+    <div class="card table-scroll">
+      <table>
+        <thead>
+          <tr><th>β range</th><th>Failure pattern</th><th>Typical causes</th><th>Maintenance implication</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge b-1">β &lt; 1</span></td>
+            <td><strong>Infant mortality</strong>: failure rate decreases with age</td>
+            <td>Poor installation, manufacturing defects, wrong assembly, inadequate commissioning, maintenance-induced errors</td>
+            <td><strong>Do not</strong> do time-based overhaul; it resets the clock to the riskiest period. Improve QA/QC, burn-in, installation procedures and precision maintenance.</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-2">β ≈ 1</span></td>
+            <td><strong>Random</strong>: constant failure rate (exponential)</td>
+            <td>External events, overloads, operator error, mixed failure modes, many electronics</td>
+            <td>Age-based replacement adds no value. Use <strong>condition monitoring</strong> (if a P-F interval exists), <strong>failure-finding tests</strong> for hidden functions, redundancy, or run-to-failure.</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-3">1 &lt; β ≤ 4</span></td>
+            <td><strong>Early wear-out</strong>: failure rate rises</td>
+            <td>Bearing fatigue, corrosion, erosion, low-cycle fatigue</td>
+            <td><strong>Scheduled replacement / overhaul</strong> can be cost-effective, especially when β &gt; 2. Combine with CBM where possible.</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-3">β &gt; 4</span></td>
+            <td><strong>Rapid wear-out</strong>: failures cluster tightly around η</td>
+            <td>Material ageing, erosion of seals, belts, brake pads, stress corrosion</td>
+            <td>Highly predictable. <strong>Fixed-interval replacement</strong> before the B1–B10 life is usually best.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p><strong>Rule of thumb.</strong> Time-based preventive maintenance only pays off when <strong>β &gt; 1</strong> <em>and</em> the cost of an unplanned failure is clearly higher than a planned replacement (C<sub>f</sub> / C<sub>p</sub> &gt; 1). If either is false, look at condition-based or design-out options.</p>
+    </div>
+  </section>
+
+  <!-- CALC -->
+  <section id="calc">
+    <h2>Interactive Weibull calculator</h2>
+    <p>Adjust β and η to see how the curves and key reliability figures change.</p>
+    <div class="card">
+      <div class="controls">
+        <div class="control">
+          <label for="beta">Shape β <output id="betaOut"></output></label>
+          <input type="range" id="beta" min="0.3" max="6" step="0.05" value="2.5">
+        </div>
+        <div class="control">
+          <label for="eta">Scale η (hours) <output id="etaOut"></output></label>
+          <input type="range" id="eta" min="500" max="50000" step="100" value="12000">
+        </div>
+        <div class="control">
+          <label for="tq">Mission / operating time t (hours) <output id="tqOut"></output></label>
+          <input type="range" id="tq" min="0" max="50000" step="100" value="6000">
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="k">Reliability R(t)</div><div class="v" id="kR"></div><div class="s">chance to survive to t</div></div>
+        <div class="tile"><div class="k">Unreliability F(t)</div><div class="v" id="kF"></div><div class="s">chance to fail by t</div></div>
+        <div class="tile"><div class="k">Hazard h(t)</div><div class="v" id="kH"></div><div class="s">failures per 1,000 h</div></div>
+        <div class="tile"><div class="k">MTTF</div><div class="v" id="kM"></div><div class="s">hours</div></div>
+        <div class="tile"><div class="k">B10 life</div><div class="v" id="kB"></div><div class="s">hours (10% failed)</div></div>
+      </div>
+      <p id="kInterp" style="margin:4px 0 0"></p>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-fn="R">Reliability R(t)</button>
+        <button role="tab" aria-selected="false" data-fn="F">Unreliability F(t)</button>
+        <button role="tab" aria-selected="false" data-fn="f">PDF f(t)</button>
+        <button role="tab" aria-selected="false" data-fn="h">Hazard h(t)</button>
+      </div>
+      <div class="chart" id="calcChart"></div>
+    </div>
+  </section>
+
+  <!-- FIT -->
+  <section id="fit">
+    <h2>Fit Weibull parameters from failure data</h2>
+    <p>Enter complete times-to-failure (same units, comma separated). The page ranks them, assigns <strong>Bernard's median rank</strong> F̂<sub>i</sub> = (i − 0.3) / (n + 0.4), and runs <strong>median-rank regression</strong> on the linearised Weibull plot to estimate β and η. The default data is an example set of centrifugal pump mechanical-seal failures.</p>
+    <div class="card">
+      <label for="data" style="font-size:14px;color:var(--text-2)">Times to failure (hours)</label>
+      <textarea id="data">1250, 1980, 2610, 3020, 3540, 4100, 4720, 5390, 6200, 7450</textarea>
+      <div style="margin-top:10px"><button id="fitBtn">Fit Weibull</button> <span id="fitErr" class="status bad"></span></div>
+
+      <div class="tiles">
+        <div class="tile"><div class="k">β (shape)</div><div class="v" id="fB"></div><div class="s" id="fBs"></div></div>
+        <div class="tile"><div class="k">η (scale)</div><div class="v" id="fE"></div><div class="s">hours</div></div>
+        <div class="tile"><div class="k">R² (goodness of fit)</div><div class="v" id="fR"></div><div class="s">closer to 1 is better</div></div>
+        <div class="tile"><div class="k">B10 life</div><div class="v" id="fB10"></div><div class="s">hours</div></div>
+      </div>
+
+      <div class="legend">
+        <span><i style="background:var(--series-1);height:8px;width:8px;border-radius:50%"></i>Observed failures (median rank)</span>
+        <span><i style="background:var(--series-2)"></i>Fitted Weibull line</span>
+      </div>
+      <div class="chart" id="fitChart"></div>
+
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;color:var(--text-2)">Show ranking table</summary>
+        <div class="table-scroll"><table id="fitTable"></table></div>
+      </details>
+      <button id="useFit" style="margin-top:12px;background:transparent;color:var(--accent)">Send fitted β &amp; η to calculator and PM optimiser</button>
+    </div>
+    <p style="font-size:14px">Note: this handles complete data only. With suspensions (units removed without failing), use Johnson's adjusted ranks or maximum-likelihood estimation (MLE). MLE is also preferred for small samples (n &lt; 10) or heavy censoring.</p>
+  </section>
+
+  <!-- PM -->
+  <section id="pm">
+    <h2>Optimal preventive replacement interval</h2>
+    <p>For wear-out modes (β &gt; 1), the <strong>age-replacement model</strong> finds the replacement age T that minimises long-run cost per operating hour:</p>
+    <div class="formula">C(T) = [ C<sub>p</sub>·R(T) + C<sub>f</sub>·F(T) ] ÷ ∫<sub>0</sub><sup>T</sup> R(t) dt</div>
+    <p>C<sub>p</sub> is the cost of a planned replacement. C<sub>f</sub> is the total cost of an unplanned failure (repair, lost production, secondary damage, HSE exposure).</p>
+    <div class="card">
+      <div class="controls">
+        <div class="control"><label for="pmBeta">β</label><input type="number" id="pmBeta" step="0.1" value="2.5"></div>
+        <div class="control"><label for="pmEta">η (hours)</label><input type="number" id="pmEta" step="100" value="12000"></div>
+        <div class="control"><label for="cp"><span>Planned cost C<sub>p</sub> (USD)</span></label><input type="number" id="cp" step="100" value="5000"></div>
+        <div class="control"><label for="cf"><span>Failure cost C<sub>f</sub> (USD)</span></label><input type="number" id="cf" step="100" value="40000"></div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><div class="k">Optimal interval T*</div><div class="v" id="pT"></div><div class="s">operating hours</div></div>
+        <div class="tile"><div class="k">Cost rate at T*</div><div class="v" id="pC"></div><div class="s">USD per hour</div></div>
+        <div class="tile"><div class="k">Run-to-failure cost</div><div class="v" id="pRTF"></div><div class="s">USD per hour (C<sub>f</sub>/MTTF)</div></div>
+        <div class="tile"><div class="k">Saving vs RTF</div><div class="v" id="pS"></div><div class="s">per hour</div></div>
+      </div>
+      <p id="pMsg"></p>
+      <div class="legend"><span><i style="background:var(--series-1)"></i>Cost rate with planned replacement at T</span><span><i style="background:var(--series-2)"></i>Run-to-failure cost</span></div>
+      <div class="chart" id="pmChart"></div>
+    </div>
+  </section>
+
+  <!-- STEPS -->
+  <section id="steps">
+    <h2>A practical Weibull workflow for maintenance teams</h2>
+    <ol class="steps">
+      <li><strong>Define the failure mode clearly.</strong> Analyse one mode at a time (e.g. "mechanical seal leak", not "pump failure"). Mixing modes distorts β, often pulling it toward 1.</li>
+      <li><strong>Collect clean age data from the CMMS.</strong> Record operating hours or cycles since the last renewal, not calendar dates. Include suspensions: units still running, or removed for other reasons.</li>
+      <li><strong>Plot and fit.</strong> Use median-rank regression for a quick look and MLE for decisions. Check R² and look for a curved or "dog-leg" plot, which points to mixed modes or a failure-free period (γ).</li>
+      <li><strong>Interpret β.</strong> β &lt; 1 means fix quality and installation. β ≈ 1 means CBM or failure-finding. β &gt; 1 means consider time-based replacement.</li>
+      <li><strong>Quantify consequences.</strong> Estimate C<sub>p</sub> and C<sub>f</sub>, including production loss and safety/environmental impact.</li>
+      <li><strong>Set the strategy and interval.</strong> Use the cost-optimal T*, the B<sub>x</sub> life for safety-critical items, or the P-F interval for CBM tasks.</li>
+      <li><strong>Feed back and update.</strong> Re-run the analysis as new failures and suspensions arrive, and track MTBF and bad-actor trends.</li>
+    </ol>
+
+    <h3>Common pitfalls</h3>
+    <div class="grid-2">
+      <div class="card"><strong>Ignoring suspensions</strong><p>Leaving out running units makes life look shorter than it really is, which leads to over-maintenance.</p></div>
+      <div class="card"><strong>Mixing failure modes</strong><p>A blend of infant mortality and wear-out can look like β ≈ 1 and hide both problems.</p></div>
+      <div class="card"><strong>Too few data points</strong><p>With n &lt; 5, β is very uncertain. Use Weibayes with a known β from industry data such as OREDA.</p></div>
+      <div class="card"><strong>Calendar vs operating time</strong><p>Use run-hours or cycles. Standby time distorts the ages unless the mode is time-driven, such as corrosion.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>Weibull reliability reference · Calculations run locally in your browser</footer>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+// ---------- Math ----------
+const R  = (t, b, e) => Math.exp(-Math.pow(t / e, b));
+const F  = (t, b, e) => 1 - R(t, b, e);
+const pdf = (t, b, e) => t <= 0 && b < 1 ? NaN : (b / e) * Math.pow(t / e, b - 1) * R(t, b, e);
+const haz = (t, b, e) => t <= 0 && b < 1 ? NaN : (b / e) * Math.pow(t / e, b - 1);
+function gamma(z) { // Lanczos approximation
+  if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+  z -= 1;
+  const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  let x = c[0];
+  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+  const t = z + g + 0.5;
+  return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+}
+const mttf = (b, e) => e * gamma(1 + 1 / b);
+const bLife = (x, b, e) => e * Math.pow(-Math.log(1 - x / 100), 1 / b);
+
+// ---------- Formatting ----------
+const fmt = (v, d = 0) => isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }) : "–";
+const pct = v => isFinite(v) ? (v * 100).toFixed(1) + "%" : "–";
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// ---------- Generic SVG line chart with crosshair tooltip ----------
+const tip = document.getElementById("tip");
+function niceTicks(min, max, n = 5) {
+  const span = max - min || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function lineChart(el, opts) {
+  // opts: series [{name, color, points:[[x,y]], dot?}], xLabel, yLabel, xFmt, yFmt, yMin, yMax, marker?, xTicks?, yTicks?
+  const W = 760, H = 320, m = { t: 12, r: 16, b: 44, l: 64 };
+  const all = opts.series.flatMap(s => s.points).filter(p => isFinite(p[1]));
+  const xMin = opts.xMin ?? Math.min(...all.map(p => p[0])), xMax = opts.xMax ?? Math.max(...all.map(p => p[0]));
+  const yMin = opts.yMin ?? Math.min(0, ...all.map(p => p[1])), yMax = opts.yMax ?? Math.max(...all.map(p => p[1])) * 1.05;
+  const sx = x => m.l + (x - xMin) / (xMax - xMin) * (W - m.l - m.r);
+  const sy = y => H - m.b - (Math.min(Math.max(y, yMin), yMax) - yMin) / (yMax - yMin) * (H - m.t - m.b);
+  const xT = opts.xTicks || niceTicks(xMin, xMax, 6), yT = opts.yTicks || niceTicks(yMin, yMax, 5);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria || ""}"><g class="axis">`;
+  yT.forEach(v => s += `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${m.l - 8}" y="${sy(v) + 4}" text-anchor="end">${opts.yFmt(v)}</text>`);
+  xT.forEach(v => s += `<text x="${sx(v)}" y="${H - m.b + 18}" text-anchor="middle">${opts.xFmt(v)}</text>`);
+  s += `<line class="baseline" x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}"/>`;
+  s += `<text class="ax-title" x="${(m.l + W - m.r) / 2}" y="${H - 6}" text-anchor="middle">${opts.xLabel}</text>`;
+  s += `<text class="ax-title" transform="translate(14 ${(m.t + H - m.b) / 2}) rotate(-90)" text-anchor="middle">${opts.yLabel}</text></g>`;
+  if (opts.marker) s += `<line x1="${sx(opts.marker.x)}" x2="${sx(opts.marker.x)}" y1="${m.t}" y2="${H - m.b}" stroke="${css("--muted")}" stroke-dasharray="4 4"/><text x="${sx(opts.marker.x) + 6}" y="${m.t + 12}" fill="${css("--text-2")}" font-size="12">${opts.marker.label}</text>`;
+  opts.series.forEach(se => {
+    if (se.dot) {
+      se.points.forEach(p => s += `<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="5" fill="${se.color}" stroke="${css("--surface")}" stroke-width="2"/>`);
+    } else {
+      const d = se.points.filter(p => isFinite(p[1])).map((p, i) => (i ? "L" : "M") + sx(p[0]).toFixed(1) + "," + sy(p[1]).toFixed(1)).join("");
+      s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+  });
+  s += `<line class="crosshair" id="ch" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/>`;
+  s += `<g id="dots"></g><rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent"/></svg>`;
+  el.innerHTML = s;
+
+  const svg = el.querySelector("svg"), ch = svg.querySelector("#ch"), dots = svg.querySelector("#dots");
+  const lineSeries = opts.series.filter(x => !x.dot);
+  svg.onmousemove = ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width;
+    const x = xMin + (px - m.l) / (W - m.l - m.r) * (xMax - xMin);
+    if (x < xMin || x > xMax) return hide();
+    let html = `<div style="color:${css("--text-2")};margin-bottom:4px">${opts.xLabel}: <b style="color:${css("--text")}">${opts.xFmt(x, true)}</b></div>`, dh = "";
+    if (opts.hover) { const h = opts.hover(x); html += h.html; h.pts.forEach(([xx, yy, c]) => dh += `<circle cx="${sx(xx)}" cy="${sy(yy)}" r="4" fill="${c}" stroke="${css("--surface")}" stroke-width="2"/>`); }
+    else lineSeries.forEach(se => {
+      const y = se.fn(x); if (!isFinite(y)) return;
+      html += `<div class="row"><span class="sw" style="background:${se.color}"></span>${se.name}: <b>${opts.yFmt(y, true)}</b></div>`;
+      dh += `<circle cx="${sx(x)}" cy="${sy(y)}" r="4" fill="${se.color}" stroke="${css("--surface")}" stroke-width="2"/>`;
+    });
+    ch.setAttribute("x1", sx(x)); ch.setAttribute("x2", sx(x)); ch.setAttribute("visibility", "visible");
+    dots.innerHTML = dh;
+    tip.innerHTML = html; tip.style.opacity = 1;
+    const tx = ev.pageX + 14, tw = tip.offsetWidth;
+    tip.style.left = (tx + tw > window.scrollX + document.documentElement.clientWidth - 8 ? ev.pageX - tw - 14 : tx) + "px";
+    tip.style.top = (ev.pageY - 10) + "px";
+  };
+  const hide = () => { tip.style.opacity = 0; ch.setAttribute("visibility", "hidden"); dots.innerHTML = ""; };
+  svg.onmouseleave = hide;
+}
+const range = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+
+// ---------- Bathtub comparison ----------
+function drawBath() {
+  const e = 1000, xs = range(10, 2000, 200);
+  const set = [
+    { b: 0.5, name: "β = 0.5 (infant mortality)", color: css("--series-1") },
+    { b: 1.0, name: "β = 1.0 (random)", color: css("--series-2") },
+    { b: 3.0, name: "β = 3.0 (wear-out)", color: css("--series-3") },
+  ];
+  document.getElementById("bathLegend").innerHTML = set.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join("");
+  lineChart(document.getElementById("bathChart"), {
+    aria: "Hazard rate versus age for three Weibull shape values",
+    series: set.map(s => ({ name: s.name, color: s.color, fn: x => haz(x, s.b, e) * 1000, points: xs.map(x => [x, haz(x, s.b, e) * 1000]) })),
+    xLabel: "Age (hours)", yLabel: "Failures per 1,000 h", yMin: 0, yMax: 12, xMin: 0, xMax: 2000,
+    xFmt: (v, t) => fmt(v), yFmt: (v, t) => fmt(v, t ? 2 : (Number.isInteger(v) ? 0 : 1)),
+  });
+}
+
+// ---------- Calculator ----------
+let calcFn = "R";
+const $ = id => document.getElementById(id);
+function drawCalc() {
+  const b = +$("beta").value, e = +$("eta").value, t = +$("tq").value;
+  $("betaOut").textContent = b.toFixed(2); $("etaOut").textContent = fmt(e); $("tqOut").textContent = fmt(t);
+  $("kR").textContent = pct(R(t, b, e)); $("kF").textContent = pct(F(t, b, e));
+  $("kH").textContent = t === 0 && b < 1 ? "∞" : fmt(haz(t, b, e) * 1000, 3);
+  $("kM").textContent = fmt(mttf(b, e)); $("kB").textContent = fmt(bLife(10, b, e));
+  const mode = b < 0.95 ? ["Infant mortality: the failure rate falls with age. Time-based overhaul is not recommended.", "bad"]
+    : b <= 1.05 ? ["Random failures: age-based replacement adds no value. Use condition monitoring or failure-finding.", "warn"]
+    : ["Wear-out: the failure rate rises with age. Scheduled replacement may be cost-effective (see the PM optimiser).", "good"];
+  $("kInterp").innerHTML = `<span class="status ${mode[1]}">β = ${b.toFixed(2)} →</span> ${mode[0]}`;
+
+  const xMax = Math.max(bLife(99.5, b, e), t * 1.1, 10);
+  const xs = range(xMax / 400, xMax, 400);
+  const defs = {
+    R: { fn: x => R(x, b, e), y: "R(t)", yf: v => pct(v), yMax: 1 },
+    F: { fn: x => F(x, b, e), y: "F(t)", yf: v => pct(v), yMax: 1 },
+    f: { fn: x => pdf(x, b, e) * 1000, y: "f(t) per 1,000 h", yf: (v, tt) => fmt(v, tt ? 4 : 2) },
+    h: { fn: x => haz(x, b, e) * 1000, y: "h(t) per 1,000 h", yf: (v, tt) => fmt(v, tt ? 4 : 2) },
+  };
+  const d = defs[calcFn];
+  let yMax = d.yMax;
+  if (!yMax) { const ys = xs.map(d.fn).filter(isFinite); yMax = calcFn === "h" && b < 1 ? ys[Math.floor(ys.length * 0.15)] : Math.max(...ys) * 1.08; }
+  lineChart($("calcChart"), {
+    aria: "Weibull " + d.y + " curve",
+    series: [{ name: d.y, color: css("--series-1"), fn: d.fn, points: xs.map(x => [x, d.fn(x)]) }],
+    xLabel: "Operating time (hours)", yLabel: d.y, xMin: 0, xMax, yMin: 0, yMax,
+    xFmt: v => fmt(v), yFmt: d.yf,
+    marker: { x: t, label: "t = " + fmt(t) },
+  });
+}
+["beta", "eta", "tq"].forEach(id => $(id).addEventListener("input", drawCalc));
+document.querySelectorAll(".tabs button").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b === btn));
+  calcFn = btn.dataset.fn; drawCalc();
+}));
+
+// ---------- Fitting (median rank regression, X on Y) ----------
+let lastFit = null;
+function fitData() {
+  $("fitErr").textContent = "";
+  const t = $("data").value.split(/[\s,;]+/).map(Number).filter(v => v > 0).sort((a, b) => a - b);
+  if (t.length < 3) { $("fitErr").textContent = "Enter at least 3 positive failure times."; return; }
+  const n = t.length;
+  const rows = t.map((ti, i) => { const Fm = (i + 1 - 0.3) / (n + 0.4); return { i: i + 1, t: ti, F: Fm, x: Math.log(ti), y: Math.log(-Math.log(1 - Fm)) }; });
+  // Regress x on y (standard for Weibull MRR): x = a + c*y  → β = 1/c, η = exp(a)
+  const my = rows.reduce((s, r) => s + r.y, 0) / n, mx = rows.reduce((s, r) => s + r.x, 0) / n;
+  let sxy = 0, syy = 0, sxx = 0;
+  rows.forEach(r => { sxy += (r.x - mx) * (r.y - my); syy += (r.y - my) ** 2; sxx += (r.x - mx) ** 2; });
+  const c = sxy / syy, a = mx - c * my, beta = 1 / c, eta = Math.exp(a), r2 = (sxy * sxy) / (sxx * syy);
+  lastFit = { beta, eta };
+  $("fB").textContent = beta.toFixed(2);
+  $("fBs").textContent = beta < 0.95 ? "infant mortality" : beta <= 1.05 ? "random" : "wear-out";
+  $("fE").textContent = fmt(eta); $("fR").textContent = r2.toFixed(3); $("fB10").textContent = fmt(bLife(10, beta, eta));
+  $("fitTable").innerHTML = `<thead><tr><th class="num">Rank i</th><th class="num">Time to failure (h)</th><th class="num">Median rank F̂</th><th class="num">ln(t)</th><th class="num">ln(−ln(1−F̂))</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="num">${r.i}</td><td class="num">${fmt(r.t)}</td><td class="num">${pct(r.F)}</td><td class="num">${r.x.toFixed(3)}</td><td class="num">${r.y.toFixed(3)}</td></tr>`).join("") + "</tbody>";
+
+  // Weibull probability plot: log10 time on x, linearised F on y with % tick labels
+  const lx = v => Math.log10(v);
+  const xMin = Math.floor(lx(Math.min(t[0], bLife(1, beta, eta)))), xMax = Math.ceil(lx(Math.max(t[n - 1], bLife(99, beta, eta))));
+  const Fy = Fv => Math.log(-Math.log(1 - Fv));
+  const pTicks = [0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 0.632, 0.9, 0.99];
+  const xTicks = []; for (let k = xMin; k <= xMax; k++) xTicks.push(k);
+  const lineX = range(lx(bLife(1, beta, eta)), lx(bLife(99, beta, eta)), 60);
+  lineChart($("fitChart"), {
+    aria: "Weibull probability plot of failure data with fitted line",
+    series: [
+      { name: "Fitted", color: css("--series-2"), fn: lxv => Fy(F(10 ** lxv, beta, eta)), points: lineX.map(v => [v, Fy(F(10 ** v, beta, eta))]) },
+      { name: "Observed", color: css("--series-1"), dot: true, points: rows.map(r => [lx(r.t), r.y]) },
+    ],
+    xLabel: "Time to failure (hours, log scale)", yLabel: "Unreliability F(t), Weibull scale",
+    xMin, xMax, yMin: Fy(0.01), yMax: Fy(0.99), xTicks, yTicks: pTicks.map(Fy),
+    xFmt: (v, tt) => fmt(10 ** v), yFmt: (v, tt) => { const Fv = 1 - Math.exp(-Math.exp(v)); return tt ? pct(Fv) : (Math.round(Fv * 1000) / 10) + "%"; },
+    hover: lxv => {
+      const tt = 10 ** lxv, Fv = F(tt, beta, eta);
+      return { html: `<div class="row"><span class="sw" style="background:${css("--series-2")}"></span>Fitted F(t): <b>${pct(Fv)}</b></div><div class="row"><span class="sw" style="background:${css("--series-2")}"></span>Fitted R(t): <b>${pct(1 - Fv)}</b></div>`,
+               pts: [[lxv, Fy(Fv), css("--series-2")]] };
+    },
+  });
+}
+$("fitBtn").addEventListener("click", fitData);
+$("useFit").addEventListener("click", () => {
+  if (!lastFit) return;
+  const b = Math.min(6, Math.max(0.3, lastFit.beta));
+  $("beta").value = b; $("eta").value = Math.min(50000, Math.max(500, Math.round(lastFit.eta / 100) * 100));
+  $("tq").max = 50000;
+  $("pmBeta").value = lastFit.beta.toFixed(2); $("pmEta").value = Math.round(lastFit.eta);
+  drawCalc(); drawPM(); location.hash = "#calc";
+});
+
+// ---------- Age replacement optimisation ----------
+function costRate(T, b, e, cp, cf) {
+  const N = 200, h = T / N; let I = 0; // Simpson's rule for ∫R
+  for (let i = 0; i <= N; i++) I += (i === 0 || i === N ? 1 : i % 2 ? 4 : 2) * R(i * h, b, e);
+  I *= h / 3;
+  return (cp * R(T, b, e) + cf * F(T, b, e)) / I;
+}
+function drawPM() {
+  const b = +$("pmBeta").value, e = +$("pmEta").value, cp = +$("cp").value, cf = +$("cf").value;
+  if (!(b > 0 && e > 0 && cp > 0 && cf > 0)) return;
+  const rtf = cf / mttf(b, e);
+  const xMax = bLife(99, b, e), xs = range(xMax / 150, xMax, 150);
+  const ys = xs.map(T => costRate(T, b, e, cp, cf));
+  let iMin = 0; ys.forEach((y, i) => { if (y < ys[iMin]) iMin = i; });
+  // refine with golden-section search around the grid minimum
+  let lo = xs[Math.max(0, iMin - 1)], hi = xs[Math.min(xs.length - 1, iMin + 1)];
+  for (let k = 0; k < 40; k++) { const m1 = lo + (hi - lo) * 0.382, m2 = lo + (hi - lo) * 0.618; if (costRate(m1, b, e, cp, cf) < costRate(m2, b, e, cp, cf)) hi = m2; else lo = m1; }
+  const Tstar = (lo + hi) / 2, cStar = costRate(Tstar, b, e, cp, cf);
+  const worthwhile = b > 1 && cf > cp && cStar < rtf * 0.99;
+  $("pT").textContent = worthwhile ? fmt(Tstar) : "N/A";
+  $("pC").textContent = worthwhile ? fmt(cStar, 2) : fmt(rtf, 2);
+  $("pRTF").textContent = fmt(rtf, 2);
+  $("pS").textContent = worthwhile ? pct(1 - cStar / rtf) : "0%";
+  $("pMsg").innerHTML = worthwhile
+    ? `<span class="status good">Preventive replacement pays off.</span> Replace at about <strong>${fmt(Tstar)} h</strong>. Expected reliability at that age is ${pct(R(Tstar, b, e))}, which is ${fmt(Tstar / mttf(b, e) * 100)}% of MTTF.`
+    : `<span class="status warn">No cost-optimal replacement age.</span> ${b <= 1 ? "β ≤ 1, so the failure rate does not increase with age. Use condition monitoring, failure-finding or run-to-failure." : "The cost ratio C<sub>f</sub>/C<sub>p</sub> is too low for planned replacement to beat run-to-failure."}`;
+  lineChart($("pmChart"), {
+    aria: "Cost per hour versus replacement interval",
+    series: [
+      { name: "Cost rate C(T)", color: css("--series-1"), fn: T => costRate(T, b, e, cp, cf), points: xs.map((x, i) => [x, ys[i]]) },
+      { name: "Run-to-failure", color: css("--series-2"), fn: () => rtf, points: [[0, rtf], [xMax, rtf]] },
+    ],
+    xLabel: "Replacement interval T (hours)", yLabel: "Cost (USD / hour)",
+    xMin: 0, xMax, yMin: 0, yMax: Math.min(Math.max(...ys), rtf * 4) * 1.05,
+    xFmt: v => fmt(v), yFmt: (v, tt) => fmt(v, tt ? 2 : (v < 10 ? 1 : 0)),
+    marker: worthwhile ? { x: Tstar, label: "T* = " + fmt(Tstar) + " h" } : null,
+  });
+}
+["pmBeta", "pmEta", "cp", "cf"].forEach(id => $(id).addEventListener("input", drawPM));
+
+// ---------- Init / theme reactivity ----------
+function drawAll() { drawBath(); drawCalc(); fitData(); drawPM(); }
+drawAll();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+</script>
+</body>
+</html>
